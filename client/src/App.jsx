@@ -200,7 +200,7 @@ const Home = ({ navigate }) => (
                 {/* <img src="https://res.cloudinary.com/dpsq08nun/image/upload/v1777359495/IMG-20260407-WA0000_eyvt70.jpg" alt="Lab" className="w-full h-full object-cover" /> */}
                 {/* <video src="https://res.cloudinary.com/dpsq08nun/video/upload/v1780559025/My_movie_20_gjbl1c.mp4"  className="w-full h-full object-cover" autoPlay loop muted playsInline/> */}
                 <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-emerald-50 p-6 mb-12">
-  {/* <video 
+  <video 
     className="w-[2000px]  h-[800px] object-cover rounded-2xl shadow-xl border-4 border-white/80 m-4" 
     autoPlay 
     loop 
@@ -217,7 +217,7 @@ const Home = ({ navigate }) => (
     />
     Your browser does not support the video tag.
   </video>
-</div> */}
+</div>
 
             </div>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
