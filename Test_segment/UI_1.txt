@@ -1,0 +1,845 @@
+// import React, { useState, useEffect, useRef } from 'react';
+// import { 
+//   Activity, Menu, ArrowRight, Receipt, CheckCircle, Pill, BedDouble, ShieldCheck, 
+//   ScanLine, FileText, ListChecks, Check, X, Scale, Loader2, Info, Bot, Timer, 
+//   MoreVertical, FileSearch, Paperclip, Send, Mail, Syringe
+// } from 'lucide-react';
+
+// function App() {
+//   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+//   const cursorGlowRef = useRef(null);
+//   const billingSectionRef = useRef(null);
+  
+//   const [billingItems, setBillingItems] = useState([
+//     {
+//       id: 1,
+//       icon: Pill,
+//       iconBg: "bg-blue-500/20",
+//       iconColor: "text-blue-400",
+//       title: "Medicine A (Antibiotics)",
+//       time: "Today, 14:30 PM",
+//       price: "₹500"
+//     },
+//     {
+//       id: 2,
+//       icon: Activity,
+//       iconBg: "bg-purple-500/20",
+//       iconColor: "text-purple-400",
+//       title: "ECG Scan Routine",
+//       time: "Today, 10:15 AM",
+//       price: "₹1,200"
+//     },
+//     {
+//       id: 3,
+//       icon: BedDouble,
+//       iconBg: "bg-green-500/20",
+//       iconColor: "text-green-400",
+//       title: "ICU Room Charge (Day 2)",
+//       time: "Yesterday",
+//       price: "₹15,000"
+//     }
+//   ]);
+  
+//   const [totalDue, setTotalDue] = useState("₹45,200");
+//   const [isTotalPulsing, setIsTotalPulsing] = useState(false);
+  
+//   useEffect(() => {
+//     const cursorGlow = cursorGlowRef.current;
+    
+//     const handleMouseMove = (e) => {
+//       if(cursorGlow) {
+//         cursorGlow.style.left = e.clientX + 'px';
+//         cursorGlow.style.top = e.clientY + 'px';
+//       }
+//     };
+    
+//     const handleMouseLeave = () => {
+//       if(cursorGlow) cursorGlow.style.opacity = '0';
+//     };
+    
+//     const handleMouseEnter = () => {
+//       if(cursorGlow) cursorGlow.style.opacity = '1';
+//     };
+
+//     document.addEventListener('mousemove', handleMouseMove);
+//     document.addEventListener('mouseleave', handleMouseLeave);
+//     document.addEventListener('mouseenter', handleMouseEnter);
+    
+//     return () => {
+//       document.removeEventListener('mousemove', handleMouseMove);
+//       document.removeEventListener('mouseleave', handleMouseLeave);
+//       document.removeEventListener('mouseenter', handleMouseEnter);
+//     };
+//   }, []);
+
+//   useEffect(() => {
+//     const observer = new IntersectionObserver((entries) => {
+//       entries.forEach(entry => {
+//         if (entry.isIntersecting) {
+//           const items = entry.target.querySelectorAll('.feed-item');
+//           items.forEach((item, index) => {
+//             item.style.animationDelay = `${index * 0.2}s`;
+//             item.style.animationPlayState = 'running';
+//           });
+//         }
+//       });
+//     }, { threshold: 0.1 });
+
+//     if (billingSectionRef.current) {
+//       observer.observe(billingSectionRef.current);
+//     }
+    
+//     return () => {
+//       observer.disconnect();
+//     };
+//   }, []);
+
+//   useEffect(() => {
+//     // Simulate new expense incoming
+//     const timer = setTimeout(() => {
+//       setBillingItems(prev => [
+//         {
+//           id: 4,
+//           icon: Syringe,
+//           iconBg: "bg-yellow-500/20",
+//           iconColor: "text-yellow-400",
+//           title: "Blood Test (CBC)",
+//           time: "Just Now",
+//           timeClass: "text-emergency font-medium",
+//           price: "+₹800",
+//           priceClass: "text-emergency"
+//         },
+//         ...prev
+//       ]);
+      
+//       setTotalDue("₹46,000");
+//       setIsTotalPulsing(true);
+//       setTimeout(() => setIsTotalPulsing(false), 1000);
+      
+//     }, 5000); // Add a fake new charge after 5 seconds
+    
+//     return () => clearTimeout(timer);
+//   }, []);
+
+//   return (
+//     <div className="bg-pattern antialiased text-gray-900 bg-medicalGray min-h-screen font-sans overflow-x-hidden">
+//       {/* Interactive Cursor Glow */}
+//       <div id="cursor-glow" ref={cursorGlowRef}></div>
+
+//       {/* Fixed Top Navigation */}
+//       <header className="fixed top-0 w-full bg-medicalWhite/90 backdrop-blur-md shadow-sm z-50 border-b border-gray-100">
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//           <div className="flex justify-between items-center h-20">
+//             {/* Logo */}
+//             <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
+//               <div className="w-10 h-10 bg-emergency text-white rounded-lg flex items-center justify-center shadow-lg shadow-emergency/30">
+//                { /*<Activity className="w-6 h-6" />*/}
+//                 <img src="Dermasis.jpg"/>
+//               </div>
+//               <span className="font-bold text-2xl tracking-tight text-gray-900">DERMASIS <span className="text-emergency"> REMEDIES</span></span>
+//             </div>
+//             {/* Nav Links */}
+//             <nav className="hidden md:flex space-x-8">
+//               <a href="#home" className="text-gray-600 hover:text-emergency font-medium transition-colors">Home</a>
+//               <a href="#billing" className="text-gray-600 hover:text-emergency font-medium transition-colors">Real-Time Billing</a>
+//               <a href="#benefits" className="text-gray-600 hover:text-emergency font-medium transition-colors">Benefit Bridge</a>
+//               <a href="#discharge" className="text-gray-600 hover:text-emergency font-medium transition-colors">Discharge Bot</a>
+//               <a href="#contact" className="text-gray-600 hover:text-emergency font-medium transition-colors">Contact</a>
+//             </nav>
+//             {/* Mobile Menu Button */}
+//             <div className="md:hidden flex items-center">
+//               <button 
+//                 id="mobile-menu-btn" 
+//                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+//                 className="text-gray-600 hover:text-emergency focus:outline-none"
+//               >
+//                 <Menu className="w-6 h-6" />
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//         {/* Mobile Nav Menu */}
+//         <div id="mobile-menu" className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:hidden bg-white border-t border-gray-100`}>
+//           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+//             <a href="#home" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-emergency hover:bg-gray-50 rounded-md">Home</a>
+//             <a href="#billing" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-emergency hover:bg-gray-50 rounded-md">Real-Time Billing</a>
+//             <a href="#benefits" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-emergency hover:bg-gray-50 rounded-md">Benefit Bridge</a>
+//             <a href="#discharge" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-emergency hover:bg-gray-50 rounded-md">Discharge Bot</a>
+//             <a href="#contact" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-emergency hover:bg-gray-50 rounded-md">Contact</a>
+//           </div>
+//         </div>
+//       </header>
+
+//       <main className="pt-24 pb-16">
+//         {/* Hero Section */}
+//         <section id="home" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center lg:py-32">
+//           <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight mb-6">
+//             Healing Requires <span className="text-emergency">Transparency</span>.
+//           </h1>
+//           <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto mb-10">
+//             The CareCard System eliminates end-of-stay surprises. We bring real-time billing, instant benefit clearance, and automated discharge tracking to the palm of your hand.
+//           </p>
+//           {/* <a href="#billing" className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-emergency hover:bg-emergencyLight transition-all duration-300 transform hover:-translate-y-1">
+//             Explore the Prototype
+//             <ArrowRight className="ml-2 w-5 h-5" />
+//           </a> */}
+//         </section>
+
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
+          
+//         </div>
+//       </main>
+
+//       {/* Footer / Contact */}
+//       <footer id="contact" className="bg-white border-t border-gray-200 mt-12">
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+//           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+//             <div className="flex items-center gap-2">
+//               {/* <div className="w-8 h-8 bg-gray-900 text-white rounded flex items-center justify-center">
+//                  <Activity className="w-4 h-4" />
+//               </div> */}
+//               <span className="font-bold text-xl text-gray-900">DERMASIS <span className="text-emergency"> REMEDIES</span></span>
+//             </div>
+            
+//             <div className="text-center md:text-left">
+//               <p className="text-gray-500 text-sm">
+//                 <p>Copyright By Softcapphyjas Pvt. Ltd. </p>
+//               </p>
+//             </div>
+
+//             <div className="flex space-x-4">
+//               <a href="https://mail.google.com/mail/?view=cm&fs=1&to=dev.lethwala@gmail.com&su=Inquiry%20about%20Products" className="text-gray-400 hover:text-emergency transition-colors">
+//                 <span className="sr-only">Mail</span>
+//                 <Mail className="w-5 h-5" />
+//               </a>
+//             </div>
+//           </div>
+//         </div>
+//       </footer>
+//     </div>
+//   );
+// }
+
+// export default App;
+
+
+
+
+
+
+import React, { useState, useEffect } from 'react';
+import { 
+    HeartPulse, Brain, Activity, Droplets, 
+    Menu, X, Mail, Phone, MapPin, Globe, 
+    ChevronRight, User, LogOut, Users, 
+    TrendingUp, Package, Database, CheckCircle, 
+    PlusCircle, Stethoscope, TestTube, Leaf
+} from 'lucide-react';
+
+// --- THEME COLORS ---
+// We will use standard Tailwind classes but mimic the custom colors:
+// Pharma Blue: text-blue-900, bg-blue-900
+// Pharma Green: text-emerald-600, bg-emerald-600
+// Pharma Light Blue: bg-blue-50
+
+// --- COMPONENTS ---
+
+const TopBar = () => (
+    <div className="bg-blue-900 text-white text-xs py-2 px-4 md:px-8 flex justify-between items-center">
+        <div className="hidden md:flex space-x-4">
+            <span className="flex items-center"><Mail className="w-3 h-3 mr-2" /> info@novalifepharma.com</span>
+            <span className="flex items-center"><Phone className="w-3 h-3 mr-2" /> +91 1800 123 4567</span>
+        </div>
+        <div className="space-x-4 ml-auto">
+            <button className="hover:text-emerald-400 transition-colors">Investors</button>
+            <button className="hover:text-emerald-400 transition-colors">Careers</button>
+            <button className="hover:text-emerald-400 transition-colors">Media</button>
+        </div>
+    </div>
+);
+
+const Navbar = ({ navigate, currentPage, user, onLogout }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const navLinks = [
+        { id: 'home', label: 'Home' },
+        { id: 'about', label: 'About Us' },
+        { id: 'products', label: 'Products & Therapies' },
+        { id: 'rd', label: 'R&D' },
+    ];
+
+    const handleNav = (id) => {
+        navigate(id);
+        setIsOpen(false);
+    };
+
+    return (
+        <nav className="bg-white shadow-md sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between h-20 items-center">
+                    {/* Logo */}
+                    <div onClick={() => handleNav('home')} className="flex-shrink-0 flex items-center cursor-pointer">
+                        <HeartPulse className="text-emerald-600 w-8 h-8 mr-2" />
+                        <span className="font-bold text-2xl text-blue-900 tracking-tight">NovaLife<span className="font-light">Pharma</span></span>
+                    </div>
+                    
+                    {/* Desktop Menu */}
+                    <div className="hidden md:flex space-x-8 items-center">
+                        {navLinks.map((link) => (
+                            <button 
+                                key={link.id}
+                                onClick={() => handleNav(link.id)}
+                                className={`font-medium pb-1 border-b-2 transition-all ${
+                                    currentPage === link.id 
+                                    ? 'text-emerald-600 border-emerald-600' 
+                                    : 'text-gray-600 border-transparent hover:text-emerald-600 hover:border-emerald-600'
+                                }`}
+                            >
+                                {link.label}
+                            </button>
+                        ))}
+
+                        {/* Employee Portal Logic */}
+                        {user ? (
+                            <div className="flex items-center space-x-4 pl-4 border-l border-gray-200">
+                                <button 
+                                    onClick={() => handleNav('employee-dashboard')}
+                                    className="flex items-center text-blue-900 font-semibold hover:text-emerald-600"
+                                >
+                                    <User className="w-5 h-5 mr-1" /> Portal
+                                </button>
+                                <button 
+                                    onClick={onLogout}
+                                    className="text-gray-500 hover:text-red-500"
+                                    title="Logout"
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <button 
+                                onClick={() => handleNav('employee-login')}
+                                className="flex items-center text-blue-900 font-medium hover:text-emerald-600 pl-4 border-l border-gray-200"
+                            >
+                                <User className="w-4 h-4 mr-1" /> Employee Login
+                            </button>
+                        )}
+                        
+                        <button onClick={() => handleNav('contact')} className="bg-blue-900 text-white px-5 py-2 rounded-full font-medium hover:bg-blue-800 transition-colors">
+                            Contact Us
+                        </button>
+                    </div>
+
+                    {/* Mobile Menu Button */}
+                    <div className="md:hidden flex items-center">
+                        <button onClick={() => setIsOpen(!isOpen)} className="text-blue-900 hover:text-emerald-600 focus:outline-none">
+                            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Mobile Menu */}
+            {isOpen && (
+                <div className="md:hidden bg-white border-t">
+                    <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                        {navLinks.map((link) => (
+                            <button
+                                key={link.id}
+                                onClick={() => handleNav(link.id)}
+                                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50"
+                            >
+                                {link.label}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => handleNav(user ? 'employee-dashboard' : 'employee-login')}
+                            className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-blue-900 bg-blue-50 hover:bg-blue-100"
+                        >
+                            {user ? 'Employee Dashboard' : 'Employee Login'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </nav>
+    );
+};
+
+const Footer = ({ navigate }) => (
+    <footer className="bg-slate-900 text-white pt-16 pb-8 border-t-[6px] border-emerald-600 mt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+                <div>
+                    <div className="flex items-center mb-6 cursor-pointer" onClick={() => navigate('home')}>
+                        <HeartPulse className="text-emerald-500 w-8 h-8 mr-2" />
+                        <span className="font-bold text-2xl tracking-tight">NovaLife<span className="font-light">Pharma</span></span>
+                    </div>
+                    <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                        Dedicated to making a difference in patients' lives through high-quality, innovative, and accessible medicines worldwide.
+                    </p>
+                </div>
+                <div>
+                    <h4 className="text-lg font-semibold mb-6 border-b border-gray-700 pb-2">Quick Links</h4>
+                    <ul className="space-y-3 text-sm text-gray-400">
+                        <li><button onClick={() => navigate('about')} className="hover:text-emerald-500 flex items-center"><ChevronRight className="w-3 h-3 mr-2" /> About Us</button></li>
+                        <li><button onClick={() => navigate('products')} className="hover:text-emerald-500 flex items-center"><ChevronRight className="w-3 h-3 mr-2" /> Our Products</button></li>
+                        <li><button onClick={() => navigate('rd')} className="hover:text-emerald-500 flex items-center"><ChevronRight className="w-3 h-3 mr-2" /> Research & Dev</button></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 className="text-lg font-semibold mb-6 border-b border-gray-700 pb-2">Corporate Office</h4>
+                    <ul className="space-y-4 text-sm text-gray-400">
+                        <li className="flex items-start">
+                            <MapPin className="text-emerald-500 mt-1 mr-3 w-5 h-5 flex-shrink-0" />
+                            <span>NovaLife House, S.G. Highway, <br/>Ahmedabad - 380051, India.</span>
+                        </li>
+                        <li className="flex items-center">
+                            <Phone className="text-emerald-500 mr-3 w-5 h-5 flex-shrink-0" />
+                            <span>+91-79-1234 5678</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 className="text-lg font-semibold mb-6 border-b border-gray-700 pb-2">Employee Access</h4>
+                    <p className="text-sm text-gray-400 mb-4">Internal portal for field forces, medical representatives, and stock managers.</p>
+                    <button 
+                        onClick={() => navigate('employee-login')}
+                        className="inline-block bg-transparent border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white px-6 py-2 rounded font-medium transition-colors w-full text-center"
+                    >
+                        Access Portal
+                    </button>
+                </div>
+            </div>
+            <div className="border-t border-gray-800 pt-8 mt-8 text-center text-xs text-gray-500">
+                <p>&copy; 2026 NovaLife Pharmaceuticals Ltd. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+);
+
+// --- PAGES ---
+
+const Home = ({ navigate }) => (
+    <div className="animate-fadeIn">
+        {/* Hero Section */}
+        <section className="relative h-[80vh] flex items-center bg-blue-900 overflow-hidden">
+            <div className="absolute inset-0 opacity-40">
+                <img src="https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80" alt="Lab" className="w-full h-full object-cover" />
+            </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+                <div className="max-w-2xl text-white">
+                    <span className="uppercase tracking-widest text-sm font-semibold text-emerald-400 mb-4 block">Innovating Healthcare</span>
+                    <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">Reaching People, <br/>Touching Lives.</h1>
+                    <p className="text-lg md:text-xl text-gray-200 mb-8 font-light">Committed to providing affordable, high-quality medicines globally. We blend science with compassion to improve health outcomes.</p>
+                    <div className="flex space-x-4">
+                        <button onClick={() => navigate('products')} className="bg-emerald-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-emerald-500 transition-colors shadow-lg">Explore Therapies</button>
+                        <button onClick={() => navigate('about')} className="bg-white text-blue-900 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors shadow-lg">Our Journey</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* Global Stats */}
+        <section className="py-12 bg-white shadow-lg relative z-20 -mt-10 mx-4 md:mx-auto max-w-6xl rounded-xl border border-gray-100">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-gray-200">
+                <div>
+                    <h3 className="text-4xl font-bold text-blue-900 mb-2">100+</h3>
+                    <p className="text-gray-500 font-medium">Countries Served</p>
+                </div>
+                <div>
+                    <h3 className="text-4xl font-bold text-blue-900 mb-2">15,000+</h3>
+                    <p className="text-gray-500 font-medium">Global Employees</p>
+                </div>
+                <div>
+                    <h3 className="text-4xl font-bold text-blue-900 mb-2">8</h3>
+                    <p className="text-gray-500 font-medium">R&D Centers</p>
+                </div>
+                <div>
+                    <h3 className="text-4xl font-bold text-blue-900 mb-2">40+</h3>
+                    <p className="text-gray-500 font-medium">Manufacturing Sites</p>
+                </div>
+            </div>
+        </section>
+
+        {/* Quick Intro */}
+        <section className="py-20 bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 className="text-3xl font-bold text-blue-900 mb-4">Pioneering Better Health</h2>
+                <div className="w-16 h-1 bg-emerald-600 mx-auto mb-6"></div>
+                <p className="max-w-3xl mx-auto text-gray-600 text-lg leading-relaxed">
+                    NovaLife Pharma is a specialty pharmaceutical company engaged in the research, development, manufacturing, and marketing of high-quality medicines globally. We specialize in cardiology, neurology, gastroenterology, and diabetology.
+                </p>
+            </div>
+        </section>
+    </div>
+);
+
+const About = () => (
+    <div className="py-20 bg-white animate-fadeIn min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 className="text-4xl font-bold text-blue-900 mb-4">About NovaLife Pharma</h1>
+            <div className="w-16 h-1 bg-emerald-600 mb-12"></div>
+            
+            <div className="flex flex-col md:flex-row gap-12 items-center">
+                <div className="md:w-1/2">
+                    <img src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="About Us" className="rounded-xl shadow-xl" />
+                </div>
+                <div className="md:w-1/2 space-y-6">
+                    <h3 className="text-2xl font-bold text-gray-800">Our Vision & Mission</h3>
+                    <p className="text-gray-600 leading-relaxed">
+                        To be a leading global healthcare company which uses technology and innovation to meet everyday needs of all patients. We are driven by the purpose of "Caring for Life".
+                    </p>
+                    <p className="text-gray-600 leading-relaxed">
+                        Established in 1995, we have grown from a small manufacturing unit to a global entity, always maintaining our core values of quality, reliability, and trust.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-100">
+                        <div className="flex items-center text-blue-900 font-semibold">
+                            <CheckCircle className="text-emerald-500 mr-2" /> FDA Approved Sites
+                        </div>
+                        <div className="flex items-center text-blue-900 font-semibold">
+                            <CheckCircle className="text-emerald-500 mr-2" /> Global Compliance
+                        </div>
+                        <div className="flex items-center text-blue-900 font-semibold">
+                            <CheckCircle className="text-emerald-500 mr-2" /> Sustainable Operations
+                        </div>
+                        <div className="flex items-center text-blue-900 font-semibold">
+                            <CheckCircle className="text-emerald-500 mr-2" /> Patient First Approach
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+const Products = () => (
+    <div className="py-20 bg-gray-50 animate-fadeIn min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+                <h1 className="text-4xl font-bold text-blue-900 mb-4">Therapeutic Areas</h1>
+                <div className="w-16 h-1 bg-emerald-600 mx-auto mb-6"></div>
+                <p className="text-gray-600 max-w-2xl mx-auto">Providing comprehensive solutions across major therapeutic categories to improve patient outcomes.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {[
+                    { title: "Cardiology", desc: "Solutions for cardiovascular health, hypertension, and lipid management.", icon: <Activity className="w-10 h-10 text-emerald-600 mb-4" /> },
+                    { title: "Neurology", desc: "Advanced therapies for central nervous system disorders and mental well-being.", icon: <Brain className="w-10 h-10 text-emerald-600 mb-4" /> },
+                    { title: "Gastroenterology", desc: "Effective treatments for digestive system conditions and GI disorders.", icon: <Stethoscope className="w-10 h-10 text-emerald-600 mb-4" /> },
+                    { title: "Diabetology", desc: "Innovative approaches to diabetes management and metabolic health.", icon: <Droplets className="w-10 h-10 text-emerald-600 mb-4" /> }
+                ].map((item, idx) => (
+                    <div key={idx} className="bg-white p-8 rounded-xl shadow-sm hover:shadow-xl transition-shadow border border-gray-100">
+                        <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mb-6">
+                            {item.icon}
+                        </div>
+                        <h3 className="text-xl font-bold text-blue-900 mb-3">{item.title}</h3>
+                        <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
+const Research = () => (
+    <div className="py-20 bg-white animate-fadeIn min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <TestTube className="w-16 h-16 text-emerald-600 mx-auto mb-6" />
+            <h1 className="text-4xl font-bold text-blue-900 mb-4">Research & Development</h1>
+            <div className="w-16 h-1 bg-emerald-600 mx-auto mb-8"></div>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
+                Innovation is the lifeblood of NovaLife. Our R&D centers are equipped with state-of-the-art technology focusing on complex generics, novel drug delivery systems, and active pharmaceutical ingredients.
+            </p>
+            <div className="grid md:grid-cols-3 gap-8">
+                <div className="p-6 bg-blue-50 rounded-lg">
+                    <h3 className="text-xl font-bold text-blue-900 mb-2">Formulation R&D</h3>
+                    <p className="text-gray-600">Developing complex solid orals, injectables, and topical formulations.</p>
+                </div>
+                <div className="p-6 bg-blue-50 rounded-lg">
+                    <h3 className="text-xl font-bold text-blue-900 mb-2">API Synthesis</h3>
+                    <p className="text-gray-600">Reverse engineering and developing cost-effective, non-infringing processes.</p>
+                </div>
+                <div className="p-6 bg-blue-50 rounded-lg">
+                    <h3 className="text-xl font-bold text-blue-900 mb-2">Clinical Trials</h3>
+                    <p className="text-gray-600">Conducting rigorous bioequivalence and clinical efficacy studies globally.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+// --- EMPLOYEE PORTAL ---
+
+const EmployeeAuth = ({ setUser, navigate }) => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        // Simulate authentication
+        if (email && password) {
+            setUser({ 
+                name: isLogin ? 'Dr. Sarah Jenkins' : name, 
+                email, 
+                role: 'Medical Representative',
+                id: 'EMP-4092'
+            });
+            navigate('employee-dashboard');
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 animate-fadeIn">
+            <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-2xl border border-gray-100">
+                <div>
+                    <div className="flex justify-center">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="w-8 h-8 text-blue-900" />
+                        </div>
+                    </div>
+                    <h2 className="mt-6 text-center text-3xl font-extrabold text-blue-900">
+                        {isLogin ? 'Employee Portal' : 'Register Colleague'}
+                    </h2>
+                    <p className="mt-2 text-center text-sm text-gray-600">
+                        NovaLife Internal Network
+                    </p>
+                </div>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <div className="rounded-md shadow-sm space-y-4">
+                        {!isLogin && (
+                            <div>
+                                <label className="sr-only">Full Name</label>
+                                <input type="text" required value={name} onChange={e => setName(e.target.value)} className="appearance-none rounded relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" placeholder="Full Name" />
+                            </div>
+                        )}
+                        <div>
+                            <label className="sr-only">Corporate Email</label>
+                            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="appearance-none rounded relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" placeholder="Corporate Email address" />
+                        </div>
+                        <div>
+                            <label className="sr-only">Password</label>
+                            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="appearance-none rounded relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" placeholder="Password" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            {isLogin ? 'Secure Sign In' : 'Create Account'}
+                        </button>
+                    </div>
+                </form>
+                <div className="text-center mt-4">
+                    <button onClick={() => setIsLogin(!isLogin)} className="text-sm font-medium text-emerald-600 hover:text-emerald-500">
+                        {isLogin ? "Need access? Register new employee" : "Already have an account? Sign In"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const EmployeeDashboard = ({ user }) => {
+    const [activeTab, setActiveTab] = useState('overview');
+    
+    // Form States
+    const [docName, setDocName] = useState('');
+    const [docSpecialty, setDocSpecialty] = useState('');
+    const [productName, setProductName] = useState('');
+    const [stockQty, setStockQty] = useState('');
+
+    const handleLogVisit = (e) => {
+        e.preventDefault();
+        alert(`Consultation logged for ${docName} (${docSpecialty}). Data prepared for database sync.`);
+        setDocName(''); setDocSpecialty('');
+    };
+
+    const handleUpdateStock = (e) => {
+        e.preventDefault();
+        alert(`Stock updated: ${productName} (+${stockQty} units). Data prepared for database sync.`);
+        setProductName(''); setStockQty('');
+    };
+
+    if (!user) return <div className="p-20 text-center">Please log in.</div>;
+
+    return (
+        <div className="bg-gray-100 min-h-screen py-8 animate-fadeIn">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                {/* Header */}
+                <div className="bg-blue-900 rounded-xl p-8 mb-8 text-white flex justify-between items-center shadow-lg relative overflow-hidden">
+                    <div className="relative z-10">
+                        <h1 className="text-3xl font-bold mb-2">Welcome back, {user.name}</h1>
+                        <p className="text-blue-200">{user.role} | ID: {user.id}</p>
+                    </div>
+                    <div className="relative z-10 flex items-center bg-blue-800 px-4 py-2 rounded-lg">
+                        <Database className="w-5 h-5 mr-2 text-emerald-400" />
+                        <span className="text-sm font-medium">DB Connection: <span className="text-emerald-400">Online</span></span>
+                    </div>
+                    {/* Decorative bg */}
+                    <Activity className="absolute right-0 bottom-0 w-64 h-64 text-blue-800 opacity-50 transform translate-x-16 translate-y-16" />
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Sidebar Nav */}
+                    <div className="w-full lg:w-64 space-y-2">
+                        <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center p-3 rounded-lg font-medium transition-colors ${activeTab === 'overview' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
+                            <TrendingUp className="w-5 h-5 mr-3" /> Overview
+                        </button>
+                        <button onClick={() => setActiveTab('doctors')} className={`w-full flex items-center p-3 rounded-lg font-medium transition-colors ${activeTab === 'doctors' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
+                            <Users className="w-5 h-5 mr-3" /> Doctor Consults
+                        </button>
+                        <button onClick={() => setActiveTab('stock')} className={`w-full flex items-center p-3 rounded-lg font-medium transition-colors ${activeTab === 'stock' ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
+                            <Package className="w-5 h-5 mr-3" /> Sales & Stock
+                        </button>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 bg-white rounded-xl shadow-sm p-8 border border-gray-200">
+                        
+                        {activeTab === 'overview' && (
+                            <div className="animate-fadeIn">
+                                <h2 className="text-2xl font-bold text-blue-900 mb-6 border-b pb-4">Today's Summary</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                    <div className="p-6 bg-blue-50 rounded-xl border border-blue-100">
+                                        <div className="text-blue-500 mb-2"><Users className="w-8 h-8" /></div>
+                                        <div className="text-3xl font-bold text-blue-900">12</div>
+                                        <div className="text-sm text-gray-600">Doctors Visited</div>
+                                    </div>
+                                    <div className="p-6 bg-emerald-50 rounded-xl border border-emerald-100">
+                                        <div className="text-emerald-500 mb-2"><Package className="w-8 h-8" /></div>
+                                        <div className="text-3xl font-bold text-emerald-900">450</div>
+                                        <div className="text-sm text-gray-600">Units Sold</div>
+                                    </div>
+                                    <div className="p-6 bg-orange-50 rounded-xl border border-orange-100">
+                                        <div className="text-orange-500 mb-2"><Activity className="w-8 h-8" /></div>
+                                        <div className="text-3xl font-bold text-orange-900">88%</div>
+                                        <div className="text-sm text-gray-600">Target Reached</div>
+                                    </div>
+                                </div>
+                                <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600 border border-gray-200 flex items-start">
+                                    <Database className="w-5 h-5 mr-3 text-blue-900 flex-shrink-0 mt-0.5" />
+                                    <p><strong>System Note:</strong> Database integration module is active in standby mode. Data entered in "Doctor Consults" and "Stock" tabs will be batched and synced to the central server every 15 minutes.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'doctors' && (
+                            <div className="animate-fadeIn">
+                                <h2 className="text-2xl font-bold text-blue-900 mb-6 border-b pb-4">Log Doctor Consultation</h2>
+                                <form onSubmit={handleLogVisit} className="space-y-6 max-w-lg">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Doctor's Full Name</label>
+                                        <input type="text" required value={docName} onChange={e=>setDocName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. Dr. Ramesh Kumar" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Specialty</label>
+                                        <select required value={docSpecialty} onChange={e=>setSpecialty(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500">
+                                            <option value="">Select Specialty...</option>
+                                            <option value="Cardiologist">Cardiologist</option>
+                                            <option value="Neurologist">Neurologist</option>
+                                            <option value="General Physician">General Physician</option>
+                                            <option value="Diabetologist">Diabetologist</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Notes (Optional)</label>
+                                        <textarea rows="3" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500" placeholder="Discussed new formulations..."></textarea>
+                                    </div>
+                                    <button type="submit" className="flex items-center justify-center w-full px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors">
+                                        <PlusCircle className="w-5 h-5 mr-2" /> Save to Database
+                                    </button>
+                                </form>
+                            </div>
+                        )}
+
+                        {activeTab === 'stock' && (
+                            <div className="animate-fadeIn">
+                                <h2 className="text-2xl font-bold text-blue-900 mb-6 border-b pb-4">Market Sales & Stock Update</h2>
+                                <form onSubmit={handleUpdateStock} className="space-y-6 max-w-lg">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Line</label>
+                                        <select required value={productName} onChange={e=>setProductName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500">
+                                            <option value="">Select Product...</option>
+                                            <option value="CardioProtect 50mg">CardioProtect 50mg</option>
+                                            <option value="NeuroCalm Plus">NeuroCalm Plus</option>
+                                            <option value="GastroHeal Syrup">GastroHeal Syrup</option>
+                                            <option value="DiaControl 500">DiaControl 500</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Units Placed/Sold</label>
+                                        <input type="number" required min="1" value={stockQty} onChange={e=>setStockQty(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. 50" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Distributor/Pharmacy Name</label>
+                                        <input type="text" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. Apollo Pharmacy" />
+                                    </div>
+                                    <button type="submit" className="flex items-center justify-center w-full px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors">
+                                        <CheckCircle className="w-5 h-5 mr-2" /> Sync Inventory
+                                    </button>
+                                </form>
+                            </div>
+                        )}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- MAIN APP COMPONENT ---
+
+export default function App() {
+    const [currentPage, setCurrentPage] = useState('home');
+    const [user, setUser] = useState(null);
+
+    const navigate = (page) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleLogout = () => {
+        setUser(null);
+        navigate('home');
+    };
+
+    // Global Styles for Animations
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fadeIn {
+                animation: fadeIn 0.4s ease-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => document.head.removeChild(style);
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+            <TopBar />
+            <Navbar navigate={navigate} currentPage={currentPage} user={user} onLogout={handleLogout} />
+            
+            <main>
+                {currentPage === 'home' && <Home navigate={navigate} />}
+                {currentPage === 'about' && <About />}
+                {currentPage === 'products' && <Products />}
+                {currentPage === 'rd' && <Research />}
+                {currentPage === 'employee-login' && <EmployeeAuth setUser={setUser} navigate={navigate} />}
+                {currentPage === 'employee-dashboard' && <EmployeeDashboard user={user} />}
+            </main>
+
+            {/* Footer hidden on dashboard/login for cleaner UI */}
+            {currentPage !== 'employee-login' && currentPage !== 'employee-dashboard' && (
+                <Footer navigate={navigate} />
+            )}
+        </div>
+    );
+}
