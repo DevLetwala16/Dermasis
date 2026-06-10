@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
+import crypto from 'crypto';
 
 dns.setServers(["1.1.1.1","8.8.8.8"]);
 
@@ -51,14 +52,32 @@ const transporter = nodemailer.createTransport({
 const otpStore = {};
 
 // Schemas & Models
-const RegistrationSchema = new mongoose.Schema({
+const PendingEmployeeSchema = new mongoose.Schema({
+    _id: String, // userId
+    Password: { type: String, required: true },
+    Name: String,
+    Address: String,
+    DOB: String,
+    Age: Number,
+    Email: String,
+    phone: String,
+    Post: String,
+    Application_id: String,
+    approval_token: String,
+    request_time: String
+});
+const PendingEmployee = mongoose.model('PendingEmployee', PendingEmployeeSchema, 'Pending_Employee_Data');
+
+const EmployeeSchema = new mongoose.Schema({
+    userId: { type: String, unique: true },
     name: String,
     email: { type: String, unique: true },
-    userId: String,
+    password: { type: String, required: true },
+    post: String,
     registeredAt: { type: Date, default: Date.now }
 });
-// Using exact collection name 'Registration data'
-const Registration = mongoose.model('Registration', RegistrationSchema, 'Registration_Application_data');
+// Using exact collection name 'Employee_Data'
+const Employee = mongoose.model('Employee', EmployeeSchema, 'Employee_Data');
 
 const LoginLogSchema = new mongoose.Schema({
     email: String,
@@ -117,18 +136,53 @@ const getEmailTemplate = (otp, type) => `
     </html>
 `;
 
+// Python logic translations
+const generateApplicationId = (userId) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const company = "Softcapphyjas";
+    const nameLen = userId.length % 10;
+    
+    let totalOfName = 0;
+    for (let i = 0; i < userId.length; i++) {
+        totalOfName += userId.charCodeAt(i);
+    }
+    totalOfName = totalOfName % 1000;
+    
+    let companyCode = 0;
+    for (let i = 0; i < company.length; i++) {
+        companyCode += company.charCodeAt(i);
+    } // Usually 1375
+    
+    return `${year}${companyCode}${nameLen}${totalOfName}`;
+};
+
+const calculateAge = (dobString) => {
+    const today = new Date();
+    const dob = new Date(dobString);
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+    return age;
+};
+
 // API Routes
 
-app.post('/api/send-registration-otp', async (req, res) => {
-    const { name, email } = req.body;
+app.post('/api/v2/send-registration-otp', async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ error: "Email is required." });
+    }
     try {
-        const existingInfo = await Registration.findOne({ email });
+        const existingInfo = await Employee.findOne({ email });
         if (existingInfo) {
-            return res.status(400).json({ error: "Email already registered. Please sign in." });
+            return res.status(400).json({ error: "Email already registered in the system." });
         }
         
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        otpStore[email] = { otp, type: 'register', name };
+        otpStore[email] = { otp, type: 'register' };
         
         await transporter.sendMail({
             from: 'dev.lethwala@gmail.com',
@@ -144,61 +198,136 @@ app.post('/api/send-registration-otp', async (req, res) => {
     }
 });
 
-app.post('/api/verify-registration', async (req, res) => {
-    const { email, otp } = req.body;
+app.post('/api/v2/register', async (req, res) => {
+    const { name, address, dob, email, phone, post, password, otp } = req.body;
+    
+    if (!name || !email || !phone || !dob || !password || !otp) {
+        return res.status(400).json({ error: "All required fields must be provided (name, email, phone, dob, password, otp)." });
+    }
+    
     try {
         const record = otpStore[email];
         if (!record || record.otp !== otp || record.type !== 'register') {
             return res.status(400).json({ error: "Invalid or expired OTP" });
         }
-        
-        const userId = "SOFTCAP-EMP-" + Math.floor(1000 + Math.random() * 9000);
-        const newReg = new Registration({ name: record.name, email, userId });
-        await newReg.save();
-        
-        delete otpStore[email];
-        
-        await transporter.sendMail({
-            from: 'dev.lethwala@gmail.com',
-            to: email,
-            subject: 'Welcome to Softcapphyjas',
-            text: `Welcome ${record.name}!\n\nYour Registration is complete.\nYour generated User ID is: ${userId}\n\nYou can now log in.`
+
+        // Logic to generate User ID
+        // name[:4] + dob[:2] + phone[:3] + @dermasisremedies.com (capitalized initially)
+        const namePart = name.substring(0, 4);
+        const dobPart = dob.replace(/[\/-]/g, '').substring(0, 2); // Get year or whatever first 2 chars
+        // From python: dob[:2] means first two chars. Usually YYYY/MM/DD, so dob[:2] is '20' for 2006
+        const phonePart = phone.substring(0, 3);
+        let generatedUserId = `${namePart}${dobPart}${phonePart}@dermasisremedies.com`.replace(/\s/g, '');
+        generatedUserId = generatedUserId.charAt(0).toUpperCase() + generatedUserId.slice(1).toLowerCase();
+
+        const existingPending = await PendingEmployee.findOne({ _id: generatedUserId });
+        if (existingPending) {
+             return res.status(400).json({ error: "This application is already pending approval!" });
+        }
+
+        const applicationCode = generateApplicationId(generatedUserId);
+        const age = calculateAge(dob);
+        const approvalToken = crypto.randomBytes(24).toString('base64url');
+
+        const newPending = new PendingEmployee({
+            _id: generatedUserId,
+            Password: password,
+            Name: name,
+            Address: address,
+            DOB: dob,
+            Age: age,
+            Email: email,
+            phone: phone,
+            Post: post,
+            Application_id: applicationCode,
+            approval_token: approvalToken,
+            request_time: new Date().toLocaleString()
         });
 
-        res.status(201).json({ message: "Registration successful", user: { name: record.name, email, userId } });
+        await newPending.save();
+        delete otpStore[email];
+
+        // Send Manager Approval Email
+        const managerEmail = "dev.lethwala@gmail.com";
+        const baseUrl = "https://company-approvals-softcapphyjas.streamlit.app";
+        const approveUrl = `${baseUrl}/?action=approve&token=${approvalToken}`;
+        const rejectUrl = `${baseUrl}/?action=reject&token=${approvalToken}`;
+        const managerHtml = `
+            <!DOCTYPE html>
+            <html>
+            <body style="margin: 0; padding: 0; background-color: #f4f7f9; font-family: 'Segoe UI', sans-serif;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e1e8ed;">
+                    <div style="background-color: #0e4682; padding: 25px 40px; color: white;">
+                        <h2>New Employee Registration</h2>
+                        <p>Action Required: Manual Authentication Request</p>
+                    </div>
+                    <div style="padding: 40px;">
+                        <p>A new user has submitted a registration request. Details:</p>
+                        <table width="100%" cellspacing="0" cellpadding="0" style="margin: 25px 0; text-align: left;">
+                            <tr><th style="padding: 10px; background: #f8fafc;">Name</th><td style="padding: 10px; background: #f8fafc;">${name}</td></tr>
+                            <tr><th style="padding: 10px;">User ID</th><td style="padding: 10px;">${generatedUserId}</td></tr>
+                            <tr><th style="padding: 10px; background: #f8fafc;">Email</th><td style="padding: 10px; background: #f8fafc;">${email}</td></tr>
+                            <tr><th style="padding: 10px;">Phone</th><td style="padding: 10px;">${phone}</td></tr>
+                            <tr><th style="padding: 10px; background: #f8fafc;">DOB</th><td style="padding: 10px; background: #f8fafc;">${dob} (Age: ${age})</td></tr>
+                            <tr><th style="padding: 10px;">Post</th><td style="padding: 10px;">${post}</td></tr>
+                        </table>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <a href="${approveUrl}" style="background-color: #28a745; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 0 10px;">APPROVE</a>
+                            <a href="${rejectUrl}" style="background-color: #dc3545; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 0 10px;">REJECT</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        await transporter.sendMail({
+            from: 'dev.lethwala@gmail.com',
+            to: managerEmail,
+            subject: `Action Required: New Employee Registration - ${name}`,
+            html: managerHtml
+        });
+
+        res.status(201).json({ message: "Registration submitted! Awaiting Manager Approval." });
     } catch(e) {
         console.error("Verify Reg Error:", e);
-        res.status(500).json({ error: "Registration failed" });
+        res.status(500).json({ error: "Registration failed or already exists" });
     }
 });
 
-app.post('/api/send-login-otp', async (req, res) => {
-    const { email } = req.body;
+app.post('/api/v2/login-step1', async (req, res) => {
+    const { userId, password } = req.body;
+    if (!userId || !password) {
+        return res.status(400).json({ error: "User ID and Password are required." });
+    }
     try {
-        const user = await Registration.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ error: "Email not registered. Please register first." });
+        const user = await Employee.findOne({ userId });
+        if (!user || user.password !== password) {
+            return res.status(401).json({ error: "Invalid User ID or Password." });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        otpStore[email] = { otp, type: 'login' };
+        otpStore[user.email] = { otp, type: 'login', userId };
         
         await transporter.sendMail({
             from: 'dev.lethwala@gmail.com',
-            to: email,
+            to: user.email,
             subject: 'Softcapphyjas Pvt. Ltd. Login OTP',
             html: getEmailTemplate(otp, "Login")
         });
         
-        res.status(200).json({ message: "OTP sent successfully" });
+        res.status(200).json({ message: "OTP sent to your registered email successfully", email: user.email });
     } catch(e) {
         console.error("Send Login Mail Error:", e);
         res.status(500).json({ error: "Failed to send OTP" });
     }
 });
 
-app.post('/api/verify-login', async (req, res) => {
+app.post('/api/v2/verify-login', async (req, res) => {
     const { email, otp } = req.body;
+    if (!email || !otp) {
+        return res.status(400).json({ error: "Email and OTP are required." });
+    }
     try {
         const record = otpStore[email];
         if (!record || record.otp !== otp || record.type !== 'login') {
@@ -206,12 +335,12 @@ app.post('/api/verify-login', async (req, res) => {
             return res.status(400).json({ error: "Invalid or expired OTP" });
         }
         
-        const user = await Registration.findOne({ email });
+        const user = await Employee.findOne({ email });
         await new LoginLog({ email, userId: user.userId, status: "Success" }).save();
         
         delete otpStore[email];
         
-        res.status(200).json({ message: "Login successful", user: { name: user.name, email: user.email, userId: user.userId, role: 'Employee' } });
+        res.status(200).json({ message: "Login successful", user: { name: user.name, email: user.email, id: user.userId, role: user.post || 'Employee' } });
     } catch(e) {
         console.error("Login Verify Error:", e);
         res.status(500).json({ error: "Login failed" });
@@ -249,6 +378,13 @@ app.get('/api/products', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// Catch-all: return JSON 404 for any unmatched routes
+// This prevents Express from returning an HTML "Cannot GET ..." page
+// which would cause "Unexpected token '<'" JSON parse errors on the client
+app.use('/api', (req, res) => {
+    res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
 });
 
 app.listen(5000, () => console.log("Server running on port 5000"));

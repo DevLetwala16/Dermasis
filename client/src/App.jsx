@@ -7,6 +7,63 @@ import {
     PlusCircle, Stethoscope, TestTube, Leaf
 } from 'lucide-react';
 
+// --- CENTRALIZED API HELPER ---
+const API_BASE = ''; // Uses Vite proxy in dev; in production, set to your backend URL
+
+const apiCall = async (endpoint, options = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            },
+        });
+        clearTimeout(timeoutId);
+
+        // Guard: Check if the response is actually JSON before parsing
+        const contentType = response.headers.get('content-type') || '';
+
+        if (!contentType.includes('application/json')) {
+            // The server returned HTML or something else instead of JSON.
+            // This typically means: backend is down (Vite proxy returned HTML error),
+            // or the route doesn't exist (404 HTML page), or the server crashed.
+            if (response.status === 502 || response.status === 504) {
+                throw new Error('Backend server is not running. Please start the server (node server.js) on port 5000.');
+            }
+            if (response.status === 404) {
+                throw new Error(`API endpoint not found: ${endpoint}. Please check the server routes.`);
+            }
+            throw new Error(`Server returned an unexpected response (${response.status}). Expected JSON but received ${contentType || 'unknown content type'}.`);
+        }
+
+        let data;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            throw new Error('Server returned invalid JSON. The backend may be experiencing issues.');
+        }
+
+        return { ok: response.ok, status: response.status, data };
+    } catch (err) {
+        clearTimeout(timeoutId);
+
+        if (err.name === 'AbortError') {
+            throw new Error('Request timed out. The server took too long to respond.');
+        }
+        if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+            throw new Error('Cannot connect to the server. Please ensure the backend (port 5000) is running.');
+        }
+        // Re-throw our own descriptive errors from above
+        throw err;
+    }
+};
+
+
 // --- THEME COLORS ---
 // We will use standard Tailwind classes but mimic the custom colors:
 // Pharma Blue: text-blue-900, bg-blue-900
@@ -341,11 +398,14 @@ const Products = () => {
     const fetchProducts = async (subCat) => {
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/products?category=${encodeURIComponent(subCat)}`);
-            const data = await res.json();
-            setProducts(data);
+            const { ok, data } = await apiCall(`/api/products?category=${encodeURIComponent(subCat)}`);
+            if (ok) {
+                setProducts(data);
+            } else {
+                console.error("Server error fetching products:", data.error);
+            }
         } catch (err) {
-            console.error("Failed to fetch products", err);
+            console.error("Failed to fetch products:", err.message);
         }
         setLoading(false);
     };
@@ -642,135 +702,289 @@ const Research = () => (
 
 const EmployeeAuth = ({ setUser, navigate }) => {
     const [isLogin, setIsLogin] = useState(true);
-    const [step, setStep] = useState(1); // 1: Email/Name, 2: OTP
-    const [email, setEmail] = useState('');
+    const [step, setStep] = useState(1); // 1: Form, 2: OTP
+    
+    // Registration States
     const [name, setName] = useState('');
+    const [address, setAddress] = useState('');
+    const [dob, setDob] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [post, setPost] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    
+    // Login States
+    const [userId, setUserId] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
 
-    const handleSendOtp = async (e) => {
+    // Dynamic User ID Generator
+    const generateUserIdPreview = () => {
+        if (!name || !dob || !phone) return '...';
+        const namePart = name.substring(0, 4);
+        const dobPart = dob.replace(/[\/-]/g, '').substring(0, 2);
+        const phonePart = phone.substring(0, 3);
+        let id = `${namePart}${dobPart}${phonePart}@dermasisremedies.com`.replace(/\s/g, '');
+        return id.charAt(0).toUpperCase() + id.slice(1).toLowerCase();
+    };
+
+    // --- REGISTRATION FLOW ---
+    const handleSendRegOtp = async (e) => {
         e.preventDefault();
+        if (password !== confirmPassword) {
+            setErrorMsg("Passwords do not match!");
+            return;
+        }
         setLoading(true);
         setErrorMsg('');
         try {
-            const url = isLogin ? 'http://localhost:5000/api/send-login-otp' : 'http://localhost:5000/api/send-registration-otp';
-            const payload = isLogin ? { email } : { name, email };
-            
-            const res = await fetch(url, {
+            const { ok, data } = await apiCall('/api/v2/send-registration-otp', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ email })
             });
-            const data = await res.json();
-            
-            if (res.ok) {
+            if (ok) {
+                setSuccessMsg("OTP sent to your email!");
                 setStep(2);
             } else {
                 setErrorMsg(data.error || "Failed to send OTP");
             }
         } catch (err) {
-            setErrorMsg("Network error. Please check backend server.");
+            setErrorMsg(err.message);
         }
         setLoading(false);
     };
 
-    const handleVerifyOtp = async (e) => {
+    const handleVerifyReg = async (e) => {
         e.preventDefault();
         setLoading(true);
         setErrorMsg('');
         try {
-            const url = isLogin ? 'http://localhost:5000/api/verify-login' : 'http://localhost:5000/api/verify-registration';
-            const res = await fetch(url, {
+            const payload = { name, address, dob, email, phone, post, password, otp };
+            const { ok, data } = await apiCall('/api/v2/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (ok) {
+                setSuccessMsg("Registration submitted! Awaiting Manager Approval.");
+                setTimeout(() => {
+                    setIsLogin(true);
+                    setStep(1);
+                    setSuccessMsg('');
+                }, 4000);
+            } else {
+                setErrorMsg(data.error || "Invalid OTP or Registration Failed");
+            }
+        } catch (err) {
+            setErrorMsg(err.message);
+        }
+        setLoading(false);
+    };
+
+    // --- LOGIN FLOW ---
+    const handleLoginStep1 = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMsg('');
+        try {
+            const { ok, data } = await apiCall('/api/v2/login-step1', {
+                method: 'POST',
+                body: JSON.stringify({ userId, password: loginPassword })
+            });
+            if (ok) {
+                setEmail(data.email); // Save for step 2
+                setSuccessMsg("OTP sent to your registered email.");
+                setStep(2);
+            } else {
+                setErrorMsg(data.error || "Invalid Credentials");
+            }
+        } catch (err) {
+            setErrorMsg(err.message);
+        }
+        setLoading(false);
+    };
+
+    const handleVerifyLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMsg('');
+        try {
+            const { ok, data } = await apiCall('/api/v2/verify-login', {
+                method: 'POST',
                 body: JSON.stringify({ email, otp })
             });
-            const data = await res.json();
-            
-            if (res.ok) {
+            if (ok) {
                 setUser({ 
                     name: data.user.name, 
                     email: data.user.email, 
-                    role: data.user.role || 'Employee',
-                    id: data.user.userId
+                    role: data.user.role,
+                    id: data.user.id
                 });
                 navigate('employee-dashboard');
             } else {
                 setErrorMsg(data.error || "Invalid OTP");
             }
         } catch (err) {
-            setErrorMsg("Network error. Please check backend server.");
+            setErrorMsg(err.message);
         }
         setLoading(false);
     };
 
+    // --- RENDER ---
     return (
-        <div className="min-h-screen flex items-center justify-center relative bg-[#020205] overflow-hidden animate-fadeIn">
-            {/* dynamic premium background */}
-            <div className="absolute inset-0 w-full h-full pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px] opacity-30 animate-pulse"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600 rounded-full blur-[120px] opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="min-h-screen flex items-center justify-center relative bg-[#020205] overflow-hidden py-12 px-4 sm:px-6 lg:px-8">
+            {/* Dynamic Premium Background */}
+            <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[150px] opacity-20 animate-pulse"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600 rounded-full blur-[150px] opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
+                <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] bg-purple-600 rounded-full blur-[150px] opacity-10 animate-pulse" style={{ animationDelay: '4s' }}></div>
             </div>
             
-            <div className="relative z-10 w-full max-w-md p-10 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_0_50px_rgba(0,212,255,0.1)]">
-                <div className="flex justify-center mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-emerald-400 p-[1px] rounded-full">
-                        <div className="w-full h-full bg-[#020205] rounded-full flex items-center justify-center">
-                            <User className="w-8 h-8 text-emerald-400" />
+            <div className={`relative z-10 w-full ${!isLogin && step === 1 ? 'max-w-4xl' : 'max-w-md'} p-8 sm:p-10 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500`}>
+                
+                <div className="flex flex-col items-center mb-8">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-emerald-400 p-[2px] rounded-2xl rotate-3 shadow-lg mb-6">
+                        <div className="w-full h-full bg-[#020205] rounded-[14px] flex items-center justify-center -rotate-3 hover:rotate-0 transition-transform duration-300">
+                            {isLogin ? <User className="w-8 h-8 text-emerald-400" /> : <Users className="w-8 h-8 text-blue-400" />}
                         </div>
                     </div>
+                    <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tight text-center">
+                        {isLogin ? 'Secure Entry Portal' : 'Employee Onboarding'}
+                    </h2>
+                    <p className="text-sm text-blue-200/60 mt-2 font-medium tracking-wide">
+                        DERMASIS REMEDIES PVT. LTD.
+                    </p>
                 </div>
-                
-                <h2 className="text-center text-3xl font-extrabold text-white tracking-tight mb-2">
-                    {isLogin ? 'Secure Entry' : 'Employee Registration'}
-                </h2>
-                <p className="text-center text-sm text-blue-200 mb-8">
-                    Softcapphyjas Authenticated Terminal
-                </p>
 
                 {errorMsg && (
-                    <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6 text-sm text-center">
-                        {errorMsg}
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm text-center font-medium flex items-center justify-center">
+                        <X className="w-4 h-4 mr-2" /> {errorMsg}
+                    </div>
+                )}
+                {successMsg && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl mb-6 text-sm text-center font-medium flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 mr-2" /> {successMsg}
                     </div>
                 )}
 
-                {step === 1 ? (
-                    <form className="space-y-5" onSubmit={handleSendOtp}>
-                        {!isLogin && (
-                            <div>
-                                <label className="text-sm font-medium text-blue-200 mb-1 block">Full Name</label>
-                                <input type="text" required value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all" placeholder="Enter full name" />
+                {/* === REGISTRATION FORM === */}
+                {!isLogin && step === 1 && (
+                    <form className="space-y-6" onSubmit={handleSendRegOtp}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Full Name</label>
+                                    <input type="text" required value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Enter your full name" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Date of Birth</label>
+                                    <input type="date" required value={dob} onChange={e => setDob(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all [color-scheme:dark]" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Phone Number</label>
+                                    <input type="tel" required maxLength="10" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="10-digit mobile number" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Corporate Email</label>
+                                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="name@domain.com" />
+                                </div>
                             </div>
-                        )}
-                        <div>
-                            <label className="text-sm font-medium text-blue-200 mb-1 block">Corporate Email</label>
-                            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all" placeholder="name@softcapphyjas.com" />
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Designation / Post</label>
+                                    <select required value={post} onChange={e => setPost(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none">
+                                        <option value="" disabled>Select Designation</option>
+                                        <option value="PARTNER">PARTNER</option>
+                                        <option value="PMT HR">PMT HR</option>
+                                        <option value="RSM">RSM</option>
+                                        <option value="ASM">ASM</option>
+                                        <option value="MR">MR</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Current Address</label>
+                                    <textarea required value={address} onChange={e => setAddress(e.target.value)} rows="3" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none" placeholder="Enter full address"></textarea>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <button type="submit" disabled={loading} className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-500 to-emerald-500 hover:from-blue-400 hover:to-emerald-400 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all flex justify-center items-center">
-                            {loading ? <span className="animate-pulse">Processing...</span> : (isLogin ? 'Send Login OTP' : 'Send Registration OTP')}
-                        </button>
-                    </form>
-                ) : (
-                    <form className="space-y-5" onSubmit={handleVerifyOtp}>
-                        <div>
-                            <label className="text-sm font-medium text-blue-200 mb-1 flex justify-between">
-                                Enter 6-digit OTP
-                                <button type="button" onClick={() => setStep(1)} className="text-emerald-400 hover:text-emerald-300 text-xs underline">Change Email</button>
-                            </label>
-                            <input type="text" required maxLength="6" value={otp} onChange={e => setOtp(e.target.value)} className="w-full px-4 py-4 text-center text-2xl tracking-[0.5em] font-mono bg-black/30 border border-emerald-500/50 rounded-xl text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-[inset_0_0_15px_rgba(16,185,129,0.1)] transition-all" placeholder="------" />
+
+                        <div className="bg-blue-900/20 border border-blue-500/20 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between">
+                            <div className="text-blue-200 text-sm font-medium mb-2 md:mb-0">Auto-Generated User ID:</div>
+                            <div className="bg-[#0a0a0f] px-4 py-2 rounded-lg border border-white/5 font-mono text-emerald-400 font-bold tracking-wide break-all text-center">
+                                {generateUserIdPreview()}
+                            </div>
                         </div>
-                        
-                        <button type="submit" disabled={loading} className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex justify-center items-center">
-                            {loading ? 'Verifying...' : 'Verify & Enter'}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Create Password</label>
+                                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" placeholder="Enter strong password" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Confirm Password</label>
+                                <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" placeholder="Re-enter password" />
+                            </div>
+                        </div>
+
+                        <button type="submit" disabled={loading} className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all flex justify-center items-center mt-6">
+                            {loading ? <span className="animate-pulse">Processing...</span> : 'Initiate Secure Registration (Send OTP)'}
                         </button>
                     </form>
                 )}
 
-                <div className="text-center mt-8 pt-6 border-t border-white/10">
-                    <button onClick={() => { setIsLogin(!isLogin); setStep(1); setErrorMsg(''); setOtp(''); }} className="text-sm font-medium text-emerald-400/80 hover:text-emerald-300 transition-colors">
-                        {isLogin ? "New Employee? Register Here" : "Already Registered? Secure Login"}
+                {/* === LOGIN FORM === */}
+                {isLogin && step === 1 && (
+                    <form className="space-y-5" onSubmit={handleLoginStep1}>
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">User ID</label>
+                            <input type="text" required value={userId} onChange={e => setUserId(e.target.value)} className="w-full px-4 py-3.5 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" placeholder="name@dermasisremedies.com" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Password</label>
+                            <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full px-4 py-3.5 bg-[#0a0a0f] border border-white/5 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" placeholder="Enter your password" />
+                        </div>
+                        
+                        <button type="submit" disabled={loading} className="w-full py-4 mt-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex justify-center items-center">
+                            {loading ? <span className="animate-pulse">Authenticating...</span> : 'Secure Login (Send OTP)'}
+                        </button>
+                    </form>
+                )}
+
+                {/* === OTP VERIFICATION === */}
+                {step === 2 && (
+                    <form className="space-y-6" onSubmit={isLogin ? handleVerifyLogin : handleVerifyReg}>
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6 text-center">
+                            <Activity className="w-8 h-8 text-emerald-400 mx-auto mb-3 animate-pulse" />
+                            <h3 className="text-white font-bold mb-1">Two-Factor Authentication</h3>
+                            <p className="text-emerald-200/70 text-sm">We've sent a secure 6-digit code to your registered email address.</p>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex justify-between">
+                                Enter 6-digit OTP
+                                <button type="button" onClick={() => setStep(1)} className="text-blue-400 hover:text-blue-300 normal-case underline decoration-blue-400/30">Go Back</button>
+                            </label>
+                            <input type="text" required maxLength="6" value={otp} onChange={e => setOtp(e.target.value)} className="w-full px-4 py-4 text-center text-3xl tracking-[0.5em] font-mono bg-[#0a0a0f] border border-emerald-500/50 rounded-xl text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)] transition-all" placeholder="------" />
+                        </div>
+                        
+                        <button type="submit" disabled={loading} className="w-full py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex justify-center items-center">
+                            {loading ? 'Verifying Neural Link...' : 'Verify & Enter'}
+                        </button>
+                    </form>
+                )}
+
+                <div className="text-center mt-8 pt-6 border-t border-white/5">
+                    <button 
+                        onClick={() => { setIsLogin(!isLogin); setStep(1); setErrorMsg(''); setSuccessMsg(''); setOtp(''); }} 
+                        className="text-sm font-semibold text-gray-400 hover:text-white transition-colors flex items-center justify-center mx-auto"
+                    >
+                        {isLogin ? "New Employee? Apply for Access" : "Already have access? Secure Login"}
+                        <ChevronRight className="w-4 h-4 ml-1" />
                     </button>
                 </div>
             </div>
@@ -814,24 +1028,19 @@ const EmployeeDashboard = ({ user }) => {
       };
 
       try {
-          const response = await fetch('http://localhost:5000/api/log-consult', {
+          const { ok, data } = await apiCall('/api/log-consult', {
               method: 'POST',
-              headers: { 
-                  'Content-Type': 'application/json' 
-              },
               body: JSON.stringify(visitData)
           });
 
-          const data = await response.json();
-
-          if (response.ok) {
+          if (ok) {
               alert("✅ " + data.message);
               setDocName(''); setDocSpecialty(''); setPatientName(''); setClinicAddress(''); setDocNotes(''); setDocDate(new Date().toISOString().split('T')[0]);
           } else {
-              alert("❌ Server Error: " + (data.error || response.statusText));
+              alert("❌ Server Error: " + (data.error || 'Unknown error'));
           }
       } catch (error) {
-          alert("📡 Connection Failed. Please ensure your backend server is running.");
+          alert("📡 " + error.message);
       }
   };
 
@@ -848,21 +1057,19 @@ const EmployeeDashboard = ({ user }) => {
         };
 
         try {
-            const response = await fetch('http://localhost:5000/api/log-stock', {
+            const { ok, data } = await apiCall('/api/log-stock', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(stockData)
             });
 
-            const data = await response.json();
-            if (response.ok) {
+            if (ok) {
                 alert("✅ " + data.message);
                 setProductName(''); setStockQty(''); setDistributorName(''); setBatchNumber(''); setExpiryDate(''); setStockDate(new Date().toISOString().split('T')[0]);
             } else {
-                alert("❌ Server Error: " + (data.error || response.statusText));
+                alert("❌ Server Error: " + (data.error || 'Unknown error'));
             }
         } catch (error) {
-            alert("📡 Connection Failed. Please ensure your backend server is running.");
+            alert("📡 " + error.message);
         }
     };
 
