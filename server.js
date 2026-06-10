@@ -220,7 +220,7 @@ app.post('/api/v2/register', async (req, res) => {
         let generatedUserId = `${namePart}${dobPart}${phonePart}@dermasisremedies.com`.replace(/\s/g, '');
         generatedUserId = generatedUserId.charAt(0).toUpperCase() + generatedUserId.slice(1).toLowerCase();
 
-        const existingPending = await PendingEmployee.findOne({ _id: generatedUserId });
+        const existingPending = await PendingEmployee.findOne({_id: generatedUserId});
         if (existingPending) {
              return res.status(400).json({ error: "This application is already pending approval!" });
         }
