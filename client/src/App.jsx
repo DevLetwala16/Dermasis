@@ -163,7 +163,7 @@ const Footer = ({ navigate }) => (
                     <ul className="space-y-4 text-sm text-gray-400">
                         <li className="flex items-start">
                             <MapPin className="text-emerald-500 mt-1 mr-3 w-5 h-5 flex-shrink-0" />
-                            <span>DERMASIS REMEDIES Pvt. Ltd,Varachha <br/>Surat - 390010, India.</span>
+                            <span>218, Crystal Plaza, <br/>SRT, Gujarat - 395010, India.</span>
                         </li>
                         <li className="flex items-center">
                             <Phone className="text-emerald-500 mr-3 w-5 h-5 flex-shrink-0" />
