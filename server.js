@@ -263,7 +263,7 @@ app.post('/api/v2/register', async (req, res) => {
         delete otpStore[email];
 
         // Send Manager Approval Email
-        const managerEmail = "dev.lethwala@gmail.com";
+        const managerEmail = ['dev.lethwala@gmail.com','letwala.anil@gmail.com'];
         const baseUrl = "https://company-approvals-softcapphyjas.streamlit.app";
         const approveUrl = `${baseUrl}/?action=approve&token=${approvalToken}`;
         const rejectUrl = `${baseUrl}/?action=reject&token=${approvalToken}`;
@@ -299,7 +299,7 @@ app.post('/api/v2/register', async (req, res) => {
         await transporter.sendMail({
             from: 'dev.lethwala@gmail.com',
             to: managerEmail,
-            subject: `Action Required: New Employee Registration - ${name}`,
+            subject: `Action Required: New Employee Registration - ${name} ( ${address} )`,
             html: managerHtml
         });
 
@@ -369,13 +369,6 @@ app.post('/api/v2/verify-login', async (req, res) => {
             return res.status(400).json({ error: "Invalid or expired OTP" });
         }
         
-        // const user = await Employee.findOne({email});
-        // await new LoginLog({ email, userId: user.userId, status: "Success" }).save();
-        
-        // delete otpStore[email];
-        
-        // res.status(200).json({ message: "Login successful", user: { name: user.name, email: user.email, id: user.userId, role: user.post || 'Employee' } });
-        // 1.  Query using an $or condition to handle case differences in database fields
         const user = await Employee.findOne({
             $or: [
                 { email: email },
