@@ -69,15 +69,28 @@ const PendingEmployeeSchema = new mongoose.Schema({
 const PendingEmployee = mongoose.model('PendingEmployee', PendingEmployeeSchema, 'Pending_Employee_Data');
 
 const EmployeeSchema = new mongoose.Schema({
-    userId: { type: String, unique: true },
+    _id: String,
+    userId: { type: String },
     name: String,
-    email: { type: String, unique: true },
-    password: { type: String, required: true },
+    email: { type: String },
+    password: { type: String },
     post: String,
-    registeredAt: { type: Date, default: Date.now }
-});
-// Using exact collection name 'Employee_Data'
-const Employee = mongoose.model('Employee', EmployeeSchema, 'Employee_Data');
+    registeredAt: { type: Date },
+    Password: { type: String },
+    Name: String,
+    Email: String,
+    Post: String,
+    Address: String,
+    DOB: String,
+    Age: Number,
+    phone: String,
+    Application_id: String,
+    request_time: String,
+    approval_token: String
+}, { strict: false }); 
+// strict: false allows Mongoose to return fields not explicitly defined
+// Using exact collection name 'Verified_Employee'
+const Employee = mongoose.model('Employee', EmployeeSchema, 'Registration_Application_data');
 
 const LoginLogSchema = new mongoose.Schema({
     email: String,
@@ -176,7 +189,9 @@ app.post('/api/v2/send-registration-otp', async (req, res) => {
         return res.status(400).json({ error: "Email is required." });
     }
     try {
-        const existingInfo = await Employee.findOne({ email });
+        const existingInfo = await Employee.findOne({
+            $or: [{ email: email }, { Email: email }]
+        });
         if (existingInfo) {
             return res.status(400).json({ error: "Email already registered in the system." });
         }
@@ -301,22 +316,41 @@ app.post('/api/v2/login-step1', async (req, res) => {
         return res.status(400).json({ error: "User ID and Password are required." });
     }
     try {
-        const user = await Employee.findOne({ userId });
-        if (!user || user.password !== password) {
+        // Find the user safely using all possible ID fields to handle schema mismatches
+        const user = await Employee.findOne({
+            $or: [
+                { userId: userId },
+                { _id: userId },
+                { email: userId },
+                { Email: userId }
+            ]
+        });
+
+        if (!user) {
             return res.status(401).json({ error: "Invalid User ID or Password." });
         }
 
+        const dbPassword = user.password || user.Password;
+        if (dbPassword !== password) {
+            return res.status(401).json({ error: "Invalid User ID or Password." });
+        }
+
+        const userEmail = user.email || user.Email;
+        if (!userEmail) {
+            return res.status(400).json({ error: "User email not found in database." });
+        }
+
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        otpStore[user.email] = { otp, type: 'login', userId };
+        otpStore[userEmail] = { otp, type: 'login', userId: user.userId || user._id };
         
         await transporter.sendMail({
             from: 'dev.lethwala@gmail.com',
-            to: user.email,
+            to: userEmail,
             subject: 'Softcapphyjas Pvt. Ltd. Login OTP',
             html: getEmailTemplate(otp, "Login")
         });
         
-        res.status(200).json({ message: "OTP sent to your registered email successfully", email: user.email });
+        res.status(200).json({ message: "OTP sent to your registered email successfully", email: userEmail });
     } catch(e) {
         console.error("Send Login Mail Error:", e);
         res.status(500).json({ error: "Failed to send OTP" });
@@ -335,12 +369,49 @@ app.post('/api/v2/verify-login', async (req, res) => {
             return res.status(400).json({ error: "Invalid or expired OTP" });
         }
         
-        const user = await Employee.findOne({ email });
-        await new LoginLog({ email, userId: user.userId, status: "Success" }).save();
+        // const user = await Employee.findOne({email});
+        // await new LoginLog({ email, userId: user.userId, status: "Success" }).save();
+        
+        // delete otpStore[email];
+        
+        // res.status(200).json({ message: "Login successful", user: { name: user.name, email: user.email, id: user.userId, role: user.post || 'Employee' } });
+        // 1.  Query using an $or condition to handle case differences in database fields
+        const user = await Employee.findOne({
+            $or: [
+                { email: email },
+                { Email: email }
+            ]
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: "User profile no longer found." });
+        }
+
+        // 2. Extract identifiers safely using fallbacks to avoid reading undefined properties
+        const finalUserId = user.userId || user._id || "Unknown ID";
+        const finalName = user.name || user.Name || "Employee";
+        const finalEmail = user.email || user.Email || email;
+        const finalRole = user.post || user.Post || 'Employee';
+
+        // 3.Use the validated string fallback here so LoginLog won't crash
+        await new LoginLog({ 
+            email: finalEmail, 
+            userId: finalUserId, 
+            status: "Success" 
+        }).save();
         
         delete otpStore[email];
         
-        res.status(200).json({ message: "Login successful", user: { name: user.name, email: user.email, id: user.userId, role: user.post || 'Employee' } });
+        // 4. Return the safe structural data back to your client application
+        res.status(200).json({ 
+            message: "Login successful", 
+            user: { 
+                name: finalName, 
+                email: finalEmail, 
+                id: finalUserId, 
+                role: finalRole 
+            } 
+        });
     } catch(e) {
         console.error("Login Verify Error:", e);
         res.status(500).json({ error: "Login failed" });
@@ -380,9 +451,6 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// Catch-all: return JSON 404 for any unmatched routes
-// This prevents Express from returning an HTML "Cannot GET ..." page
-// which would cause "Unexpected token '<'" JSON parse errors on the client
 app.use('/api', (req, res) => {
     res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
 });
